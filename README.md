@@ -6,3 +6,5 @@
 ** [Code for recitation 3](r3/programs)
 * [Recitation 4](r4/r4.pdf)
 ** [Code for recitation 4](r4/caeser)
+* [Recitation 4](r5/r5.pdf)
+* [Recitation 4](r6/r6.pdf)
