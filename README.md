@@ -8,3 +8,4 @@
 ** [Code for recitation 4](r4/caeser)
 * [Recitation 5](r5/r5.pdf)
 * [Recitation 6](r6/r6.pdf)
+* [Recitation 7](r7/r7.pdf)
