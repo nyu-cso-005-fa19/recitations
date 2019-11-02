@@ -1,0 +1,134 @@
+\documentclass [10pt]{article}
+\textheight 8.7in
+\textwidth  6.5in
+\topmargin      0in
+\oddsidemargin  0in
+\evensidemargin 0in
+\baselineskip 15pt
+
+\usepackage{amssymb,amsmath,amstext}
+\usepackage{amsthm}
+\usepackage{amsfonts}
+\usepackage{mathtools}
+\usepackage{centernot}
+\usepackage{caption}
+\usepackage{bookmark}
+\usepackage{minted}
+\usepackage{hyperref}
+\usepackage[compact]{titlesec}
+
+\DeclarePairedDelimiter\ceil{\lceil}{\rceil}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+
+\newenvironment{code}{\captionsetup{type=listing}}{}
+
+\begin{document}
+\title{\vspace{-2cm}CSO: Recitation 9}
+\author{Goktug Saatcioglu}
+\date{10.31.2019}
+\maketitle
+
+\section{Review of Midterm}
+Done in class.
+
+\section{Continuing Assembly}
+
+\subsection{Multiplication}
+We have the following multiplication instructions:
+\begin{itemize}
+  \item Unsigned
+  \begin{itemize}
+    \item Form 1: \verb|mulq s, d|, do $s\times d$ and put the result in the $64$-bit operand, i.e. $d$
+    \item Form 2: \verb|mulq s|, do $s\times \%rax$ and put the higher order part in \verb|%rdx| and the lower order part in \verb|%rax| (so we get the full $128$-bit result)
+  \end{itemize}
+  \item Signed
+  \begin{itemize}
+    \item Form 1: \verb|imulq s, d|, do $s\times d$ and put the result in the $64$-bit operand, i.e. $d$
+    \item Form 2: \verb|imulq s|, do $s\times \%rax$ and put the higher order part in \verb|%rdx| and the lower order part in \verb|%rax| (so we get the full $128$-bit result)
+  \end{itemize}
+\end{itemize}
+Exercicse: Why might we need $128$-bits if we multiply two $64$-bit numbers (hint: think grade-school multiplication)?
+
+\subsection{Divison}
+We have the following division instructions:
+\begin{itemize}
+  \item Unsigned
+  \begin{itemize}
+    \item \verb|divq s|, do $(\%rdx+\%rax)\div s$ where the dividend is given as \verb|%rdx| for higher-order part and \verb|%rax| for the lower order part, divisor is \verb|s|, quotient is stored in \verb|%rax| and remainder stored in \verb|%rdx| (so we get the full $128$-bit result)
+  \end{itemize}
+  \item Signed
+  \begin{itemize}
+    \item \verb|idivq s|, do $(\%rdx+\%rax)\div s$ where the dividend is given as \verb|%rdx| for higher-order part and \verb|%rax| for the lower order part, divisor is \verb|s|, quotient is stored in \verb|%rax| and remainder stored in \verb|%rdx| (so we get the full $128$-bit result)
+  \end{itemize}
+  \item Useful instruction for division: \verb|cqto|
+  \begin{itemize}
+    \item convert quad word to octal word
+    \item no operands
+    \item takes the sign bit from \verb|%rax| and replicates it in all bits of \verb|%rdx|
+    \item effect: sign extend 64-bit signed \verb|%rax| to $128$-bit signed \verb|%rdx:%rax|
+  \end{itemize}
+\end{itemize}
+
+\section{Assembly Exercise}
+
+Try to convert the following C program to assembly. Make sure to note any assumptions you make and what register contains what at any given point.
+
+\begin{minted}{c}
+long arith(long x, long y, long z) {
+  long t1 = x+y;
+  long t2 = z+t1;
+  long t3 = x+4;
+  long t4 = y * 48;
+  long t5 = t3 + t4;
+  long rval = t2 * t5;
+  return rval;
+}
+\end{minted}
+
+One possible solution is given below.
+
+Let's assume the variables \verb|x|, \verb|y|, \verb|z| are located in the registers \verb|%rax|, \verb|%rbx|, \verb|%rcx| respectively. Also, assume the return register is \verb|%rdx|. Then a naive solution could look as follows:
+
+\begin{minted}{asm}
+arith:
+  movq    %rax, %r8    # calculating t1, t1 = x
+  imulq   %rbx, %r8    # t1 = x * y
+  movq    %rcx, %r9    # calculating t2, t2 = z
+  addq    %r8, %r9     # t2 = z + t1
+  movq    %rax, %r10   # calculating t3, t3 = x
+  addq    $4, %r10     # t3 = x + 4
+  movq    %rbx, %r11   # calculating t4, t4 = y
+  imulq   $48, %r11    # t4 = y * 48
+  movq    %r10, %r12   # calculating t5, t5 = t3
+  addq    %r11, %r12   # t5 = t3 + t4
+  movq    %r9, %r13    # calculating rval, rval = t2
+  imulq   %r12, %r13   # rval = t2 * t5
+  movq    %r12, %rdx   # rdx = r12, aka return val
+  ret
+\end{minted}
+
+Of course, this implementation is not efficient and can be definitely made better. The idea above was to assume we used every of register available and naively translate each instruction line by line where for each new variable we used a new register. In general, when writing assembly we can begin with a naive version that uses memory liberally, so load and store to memory as many times as we want, and use every register we want. Then, after this implementation we can think about how to optimize our solution and get better assembly.\par
+Let's try to optimize the above assembly code. Notice how variable \verb|t1| is used only once and then never used again, and then variable \verb|t2| is used only once and then never used again and then \verb|ret| is used only once. Let's assign the register \verb|%r8| to hold at any point in time one of these variables. Variable \verb|t3| can actually be calculated using a \verb|leaq| calculation so we do not assign any variables to it. Finally, variable \verb|t4| is only used to calculate the result of variable \verb|t5| so maybe we can somehow only assign these two variables to one register, say \verb|%r9|.\par
+
+Furthermore, we notice that $y\times48=3y\times16=(y+2y)>>4$ which means that we can write this operation using one \verb|leaq| operation and one \verb|salq| operation. $x+4$ can be written as \verb|leaq 4(%rcx,%rcx), Dst| where we must choose the destination register carefully. Can you figure out an optimized assembly version of this program? Give it a try and then check out the answer below.
+
+\begin{minted}{asm}
+arith:
+  leaq    (%rax,%rbx), %r8      # r8 = x + y = t1
+  addq    %r8, %rcx             # r8 = z + r8 = z + t1 = t2 
+  leaq    (%rbx,%rbx,2), %r9    # r9 = y + 2 * y
+  salq    $4, %r9               # r9 = r9 >> 4 = 48 = t4
+  leaq    4(%rcx,%rcx), %r9     # r9 = (x+4) + t4 = t3 + t4 = t5
+  imulq   %r8, %r9              # r8 = r8 * r9 = t2 * t5 = retval
+  ret                           # retval is in r8
+\end{minted}
+
+We see that:
+
+\begin{itemize}
+  \item Instructions in different order from C code
+  \item Some expressions require multiple instructions
+  \item Some instructions cover multiple expressions
+\end{itemize}
+
+\end{document}

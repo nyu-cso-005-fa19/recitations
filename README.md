@@ -9,3 +9,5 @@
 * [Recitation 5](r5/r5.pdf)
 * [Recitation 6](r6/r6.pdf)
 * [Recitation 7](r7/r7.pdf)
+* [Recitation 8](r8/r8.pdf)
+* [Recitation 9](r9/r9.pdf)
