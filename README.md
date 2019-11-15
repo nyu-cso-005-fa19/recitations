@@ -14,4 +14,4 @@
 * [Recitation 10](r10/r10.pdf)
 * [Recitation 11](r11/r11.pdf)
   * [Assembly code for recitation 11](r11/ex.s)
-  * [Source code fore recitation 11](r11/ex.c)
+  * [Source code for recitation 11](r11/ex.c)
